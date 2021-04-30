@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!--
+    如果不用maven，我们用javac编译文件时，要在javac命令后面跟要编译的java文件名，然后手工验证字节码，手工打包部署，
+    如果用maven后，它能一次性编译好整个项目，然后能测试、打包、部署等操作
+    -->
+
+    <!-- POM 就是project object model，是将一个项目当作一个对象模型来操作和管理 -->
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- 坐标简称gav，来确定互联网上的一个唯一资源，和数学中的xyz坐标轴唯一确定三维空间的一个位置类似 -->
+    <!-- 组织名称，经常是公司域名倒写，如：baidu.com -->
+    <groupId>com.asuka</groupId>
+    <!-- 项目名，唯一 -->
+    <artifactId>maven</artifactId>
+    <!-- 版本号，通常使用三个数字组成，如：3.4.5，分别表示主版本号3，次版本号4，小版本号5 -->
+    <!-- 如果版本号中带SNAPSHOT，表示是个快照版本，不稳定版本，通常用于测试等情况。带release的是稳定的版本号，我们生产环境都建议使用稳定版的依赖 -->
+    <version>1.0-SNAPSHOT</version>
+
+    <!-- 项目打包类型，就是把项目打包成一个压缩文件，这个压缩文件的扩展名就是这里指定，打包类型有jar、war、pom、ear等，默认是jar包 -->
+    <!-- 注意：当打包类型为pom时，资源文件不会被copy到target/classes目录下，pom是专门为聚合工程用的 -->
+    <packaging>war</packaging>
+
+    <!-- 多环境配置，不同环境使用不同的配置资源 -->
+    <profiles>
+        <!-- 开发环境 -->
+        <profile>
+            <id>dev</id>
+            <properties>
+                <jdbc.url>jdbc:mysql://127.0.0.1:3306</jdbc.url>
+            </properties>
+        </profile>
+
+        <!-- 测试环境 -->
+        <profile>
+            <id>test</id>
+            <properties>
+                <jdbc.url>jdbc:mysql://127.1.1.1:3306</jdbc.url>
+            </properties>
+        </profile>
+
+        <!-- 生产环境 -->
+        <profile>
+            <id>prod</id>
+            <properties>
+                <jdbc.url>jdbc:mysql://127.2.2.1:3306</jdbc.url>
+            </properties>
+        </profile>
+    </profiles>
+
+    <!-- 自定义属性，配置文件中也可以使用这里配置的属性，不过要通过<resources>指定资源位置 -->
+    <properties>
+        <!-- 项目构建时使用的编码，避免中文乱码 -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- 项目生成报告的编码 -->
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- 自定义变量 -->
+        <spring.version>2.1.0.RELEASE</spring.version>
+        <!--<jdbc.url>jdbc:mysql://127.0.0.1:3306</jdbc.url>-->
+    </properties>
+
+    <!-- 要使用到其他jar，就要添加该jar的gav坐标，从而会从maven中配置的仓库中去加载对应的jar，如果本地仓库没有该jar包，会从配置的远程仓库中下载该jar -->
+    <!-- 仓库中存放的是maven工具自己的依赖，项目的依赖，以及项目打包后也可以存放到仓库 -->
+    <dependencies>
+        <!-- 依赖传递：我直接使用了junit的依赖，但是junit需要的依赖hamcrest-core我并不需要导入，它会自动加载进来 -->
+        <!-- 我直接依赖junit，junit直接依赖hamcrest-core，然后我间接依赖了hamcrest-core -->
+        <!--
+            如果我也直接依赖了hamcrest-core，那会出现和junit包依赖的hamcrest-core版本冲突，这时应该使用哪个版本的呢？
+            maven规定了我直接依赖的层级为一度，如果是依赖的依赖进来的为二度，依次类推，maven解决版本冲突问题的两种方案：
+            1。如果层级深度不一样，层级越浅，优先级越高，一个依赖在一度和二度都有依赖时，优先使用一度依赖。
+            2。当两个module中依赖了同一个包，层级深度一样，则哪个配置靠前使用哪个。
+            3。特殊情况，就是在一个module中依赖了同一个包两次，但版本不同，则后配置的覆盖先配置的。
+        -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <!--
+                表示依赖到这个jar和类在项目构建的哪个阶段起作用：
+                compile：默认值，参与构建项目的所有阶段。（主程序范围有效）
+                test：只在测试阶段对该依赖有使用要求，其他阶段不需要。（测试程序范围有效）
+                provider：项目在部署到服务器时，不需要提供该依赖的jar，而是由服务器提供这个依赖的jar，如servlet-api的jar（不参与打包）
+                runtime：只在package时使用，其他阶段都不使用。
+
+                注意：设置了依赖范围，当别的module依赖了该module后，一定要主要该资源的依赖范围！！！
+             -->
+            <scope>test</scope>
+
+            <!-- 可选依赖是指对外隐藏当前所依赖的资源，不透明，这样其他module如果依赖了该module，该module依赖的junit对其他module不可见（间接依赖不了） -->
+            <optional>true</optional>
+
+            <!-- 排除依赖，就是我不需要通过间接依赖引进的资源 -->
+            <!--
+            <exclusions>
+                <exclusion>
+                    <artifactId>hamcrest-core</artifactId>
+                    <groupId>org.hamcrest</groupId>
+                </exclusion>
+            </exclusions>
+            -->
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+    </dependencies>
+
+    <!-- build是设置与构建有关的配置，比如编译插件的jdk版本等 -->
+    <build>
+        <plugins>
+            <!--
+                我们使用命令行时，通过javac命令将java文件编译成字节码文件，javac命令在jdk中。
+                当我们使用maven进行编译java项目时，默认到jdk版本是1.7，因此我们这里可以指定maven编译插件到jdk版本为1.8。
+             -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <!--
+                        用于指定编译源码时使用的JDK版本，例如：javac -source 1.7 TestSource.java 指定使用JDK1.4编译TestSource.java，
+                        但是TestSource.java中使用了lamba表达式，因此编译报错，需要指定JDK版本为1.8；
+                    -->
+                    <source>1.8</source>
+                    <!--
+                        用于指定生成的字节码文件要运行在哪个JDK版本，如指定target版本为1.8，则运行字节码文件的JDK版本必须大于等于1.8.
+                        编译时同时使用：运行使用的JDK版本必须大于等于编译使用的JDK版本，即-target指定的版本必须大于等于-source，否则编译会有如下错误：
+                        javac: 源发行版 1.8 需要目标发行版 1.8
+                    -->
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.1</version>
+                <executions>
+                    <execution>
+                        <!-- 设置在maven的某个生命周期阶段要做的事情。我们这里设置在generate-test-resources生命周期阶段将项目的主程序和测试程序分别打包成jar包 -->
+                        <goals>
+                            <goal>jar</goal>
+                            <goal>test-jar</goal>
+                        </goals>
+                        <!--
+                            maven有非常多的生命周期，maven命令的执行是严格按照细分的生命周期依次执行。
+                            generate-test-resources 是maven生命周期的一个阶段，是处于compile和install之间的一个小生命周期阶段。
+
+                         -->
+                        <phase>generate-test-resources</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+                设置tomcat插件，然后将项目打包类型设置成war，使用该tomcat插件的tomcat7里面的命令就可以进行编译打包部署运行这个项目了。
+                因为使用了tomcat7插件启动该项目，所以打包类型必须是war。
+            -->
+            <plugin>
+                <groupId>org.apache.tomcat.maven</groupId>
+                <artifactId>tomcat7-maven-plugin</artifactId>
+                <version>2.2</version>
+                <!-- 默认的访问路径是：http://localhost:8080/maven，maven是该项目项目名-->
+                <configuration>
+                    <port>80</port> <!-- 修改访问端口 -->
+                    <path>/</path> <!-- 修改访问路径 -->
+                    <!-- 修改完后的访问路径为：http://localhost:80/ -->
+                </configuration>
+            </plugin>
+        </plugins>
+
+        <!-- 资源插件，因为maven在编译时默认不会把src/main/java目录下的除java文件外的其他文件copy到target/classes目录下 -->
+        <!-- 通过指定这个位置的资源文件也可以使用maven中通过<properties>设置的自定义属性 -->
+        <resources>
+            <!-- 资源文件所在目录 -->
+            <resource>
+                <directory>src/main/java</directory>
+                <includes>
+                    <!-- 包括目录下到.properties, .xml都会被扫描到 -->
+                    <include>**/*.properties</include>
+                    <include>**/*.xml</include>
+                </includes>
+                <!-- 为false表示不启用过滤器，*.properties已经起到过滤作用了 -->
+                <filtering>false</filtering>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*.properties</include>
+                    <include>**/*.xml</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
+    </build>
+</project>
